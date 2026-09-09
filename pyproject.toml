@@ -6,4 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "orekit-jpype>=13.1.7.1",
+    "orekitdata",
 ]
+
+[tool.uv.sources]
+orekitdata = { git = "https://gitlab.orekit.org/orekit/orekit-data.git" }

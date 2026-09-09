@@ -92,10 +92,19 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "orekit-jpype" },
+    { name = "orekitdata" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "orekit-jpype", specifier = ">=13.1.7.1" }]
+requires-dist = [
+    { name = "orekit-jpype", specifier = ">=13.1.7.1" },
+    { name = "orekitdata", git = "https://gitlab.orekit.org/orekit/orekit-data.git" },
+]
+
+[[package]]
+name = "orekitdata"
+version = "0.dev0+untagged.103.g3e376b3"
+source = { git = "https://gitlab.orekit.org/orekit/orekit-data.git#3e376b326373467647b1e246ebb083cd9e57cd68" }
 
 [[package]]
 name = "packaging"
