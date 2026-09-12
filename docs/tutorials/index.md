@@ -62,7 +62,7 @@ print("semi-major axis:", orbit.getA(), "m")
 在项目根目录用 uv 运行：
 
 ```bash
-uv run python docs/tutorials/01-time.py
+uv run python docs/tutorials/py-examples/01-time.py
 ```
 
 > **注意**：从 13.x 版本开始，导入模块名从 `orekit` 改成了 **`orekit_jpype`**（老资料里的 `import orekit` 已经过时）。
