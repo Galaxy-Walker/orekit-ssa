@@ -149,11 +149,23 @@ class TutorialStepHandler:
         print("this was the last step")
 
 kepler.getMultiplexer().add(60.0, TutorialStepHandler())
-kepler.propagate(initial_date.shiftedBy(630.0))
+# 两参数版：显式从 initial_date 推到目标时刻（单参数版会从上次传播终点续推，见下方注意）
+kepler.propagate(initial_date, initial_date.shiftedBy(630.0))
 ```
 
 > ⚠️ **务必把接口里的所有方法（包括 default 的 `init`/`finish`）都实现**，
 > 否则 JPype 代理在 Java 侧调用 default 方法时会抛 `NoSuchMethodError`。见第 0 章。
+>
+> ⚠️ **另一个坑：`propagate(target)` 单参数版是从“上次传播的终点”继续推**
+> （内部用 `getStartDate()` 作起点）。如果按教程顺序先跑完 3.3 的 `while` 循环
+> （终点 23:40），再在同一个传播器上注册处理器并调用
+> `kepler.propagate(initial_date.shiftedBy(630.))`，处理器只会收到 23:40 → 23:40:30
+> 一步，而不是 11 行输出。解决办法：用两参数版
+> `kepler.propagate(initial_date, initial_date.shiftedBy(630.))`，或为步进演示新建一个
+> `KeplerianPropagator`。官方 Java 教程里循环与步进是两个独立示例，所以不会遇到。
+>
+> 注：目标时刻 23:40:30 不是 60 s 的整数倍，`handleStep` 最后一行是 23:40:00，
+> 23:40:30 的末状态只交给 `finish`。
 
 ## 3.5 运行结果（节选）
 
