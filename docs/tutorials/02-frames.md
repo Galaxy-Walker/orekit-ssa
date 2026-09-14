@@ -87,32 +87,32 @@ from org.hipparchus.geometry.euclidean.threed import Vector3D
 from org.hipparchus.util import FastMath
 
 utc = TimeScalesFactory.getUTC()
-initialDate = AbsoluteDate(2008, 10, 1, 0, 0, 0.0, utc)
+initial_date = AbsoluteDate(2008, 10, 1, 0, 0, 0.0, utc)
 mu = 3.986004415e14
-inertialFrame = FramesFactory.getEME2000()
+inertial_frame = FramesFactory.getEME2000()
 
-pvsat = PVCoordinates(Vector3D(-6142438.668, 3492467.560, -25767.25680),
+pv_sat = PVCoordinates(Vector3D(-6142438.668, 3492467.560, -25767.25680),
                       Vector3D(505.8479685, 942.7809215, 7435.922231))
-initialOrbit = CartesianOrbit(pvsat, inertialFrame, initialDate, mu)
-kepler = KeplerianPropagator(initialOrbit)
+initial_orbit = CartesianOrbit(pv_sat, inertial_frame, initial_date, mu)
+kepler = KeplerianPropagator(initial_orbit)
 
-earthFrame = FramesFactory.getITRF(IERSConventions.IERS_2010, True)
+earth_frame = FramesFactory.getITRF(IERSConventions.IERS_2010, True)
 earth = OneAxisEllipsoid(Constants.WGS84_EARTH_EQUATORIAL_RADIUS,
-                         Constants.WGS84_EARTH_FLATTENING, earthFrame)
+                         Constants.WGS84_EARTH_FLATTENING, earth_frame)
 
 station = GeodeticPoint(FastMath.toRadians(25.0), FastMath.toRadians(45.0), 0.0)
-staF = TopocentricFrame(earth, station, "station")
+station_frame = TopocentricFrame(earth, station, "station")
 
 print("          time           doppler (m/s)")
-finalDate = initialDate.shiftedBy(6000.0)
-extrapDate = initialDate
-while extrapDate.compareTo(finalDate) <= 0:
-    pvInert = kepler.propagate(extrapDate).getPVCoordinates()
-    pvStation = inertialFrame.getTransformTo(staF, extrapDate).transformPVCoordinates(pvInert)
-    doppler = (Vector3D.dotProduct(pvStation.getPosition(), pvStation.getVelocity())
-               / pvStation.getPosition().getNorm())
-    print("%s   %9.3f" % (extrapDate, doppler))
-    extrapDate = extrapDate.shiftedBy(600.0)
+final_date = initial_date.shiftedBy(6000.0)
+extrap_date = initial_date
+while extrap_date.compareTo(final_date) <= 0:
+    pv_inertial = kepler.propagate(extrap_date).getPVCoordinates()
+    pv_station = inertial_frame.getTransformTo(station_frame, extrap_date).transformPVCoordinates(pv_inertial)
+    doppler = (Vector3D.dotProduct(pv_station.getPosition(), pv_station.getVelocity())
+               / pv_station.getPosition().getNorm())
+    print("%s   %9.3f" % (extrap_date, doppler))
+    extrap_date = extrap_date.shiftedBy(600.0)
 ```
 
 ## 2.4 运行结果（节选）
@@ -146,10 +146,10 @@ Orekit 的坐标转换是**时刻相关**的（ITRF 相对 EME2000 在旋转）�
 
 ```python
 # 从 A 系转到 B 系，在 date 时刻
-pv_in_B = a_frame.getTransformTo(b_frame, date).transformPVCoordinates(pv_in_A)
+pv_in_b = a_frame.getTransformTo(b_frame, date).transformPVCoordinates(pv_in_a)
 
 # 反向：用 getInverse()
-pv_in_A = a_frame.getTransformTo(b_frame, date).getInverse().transformPVCoordinates(pv_in_B)
+pv_in_a = a_frame.getTransformTo(b_frame, date).getInverse().transformPVCoordinates(pv_in_b)
 ```
 
 > 站心系给出 `getElevation()` / `getAzimuth()` / `getRange()`，这正是下一章

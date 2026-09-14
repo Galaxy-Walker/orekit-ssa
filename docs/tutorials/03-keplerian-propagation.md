@@ -70,28 +70,28 @@ e = 0.72831215
 i = FastMath.toRadians(7.0)
 omega = FastMath.toRadians(180.0)
 raan = FastMath.toRadians(261.0)
-lM = 0.0
+mean_anomaly = 0.0
 
-inertialFrame = FramesFactory.getEME2000()
+inertial_frame = FramesFactory.getEME2000()
 utc = TimeScalesFactory.getUTC()
-initialDate = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
+initial_date = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
 mu = 3.986004415e14
 
-initialOrbit = KeplerianOrbit(a, e, i, omega, raan, lM, PositionAngleType.MEAN,
-                              inertialFrame, initialDate, mu)
-kepler = KeplerianPropagator(initialOrbit)
+initial_orbit = KeplerianOrbit(a, e, i, omega, raan, mean_anomaly, PositionAngleType.MEAN,
+                              inertial_frame, initial_date, mu)
+kepler = KeplerianPropagator(initial_orbit)
 
 duration = 600.0
-finalDate = initialDate.shiftedBy(duration)
-stepT = 60.0
+final_date = initial_date.shiftedBy(duration)
+step_t = 60.0
 
 cpt = 1
-extrapDate = initialDate
-while extrapDate.compareTo(finalDate) <= 0:
-    currentState = kepler.propagate(extrapDate)
-    print("step %2d %s %s" % (cpt, currentState.getDate(), currentState.getOrbit()))
+extrap_date = initial_date
+while extrap_date.compareTo(final_date) <= 0:
+    current_state = kepler.propagate(extrap_date)
+    print("step %2d %s %s" % (cpt, current_state.getDate(), current_state.getOrbit()))
     cpt += 1
-    extrapDate = extrapDate.shiftedBy(stepT)
+    extrap_date = extrap_date.shiftedBy(step_t)
 ```
 
 ## 3.4 更 OOP 的方式：固定步长处理器（Step Handler）
@@ -140,16 +140,16 @@ class TutorialStepHandler:
         print("          date                a           e")
 
     @JOverride
-    def handleStep(self, currentState):
-        o = OrbitType.KEPLERIAN.convertType(currentState.getOrbit())
-        print("%s %12.3f %10.8f" % (currentState.getDate(), o.getA(), o.getE()))
+    def handleStep(self, current_state):
+        o = OrbitType.KEPLERIAN.convertType(current_state.getOrbit())
+        print("%s %12.3f %10.8f" % (current_state.getDate(), o.getA(), o.getE()))
 
     @JOverride
-    def finish(self, finalState):
+    def finish(self, final_state):
         print("this was the last step")
 
 kepler.getMultiplexer().add(60.0, TutorialStepHandler())
-kepler.propagate(initialDate.shiftedBy(630.0))
+kepler.propagate(initial_date.shiftedBy(630.0))
 ```
 
 > ⚠️ **务必把接口里的所有方法（包括 default 的 `init`/`finish`）都实现**，
@@ -182,6 +182,6 @@ this was the last step
 
 ## 3.7 练习
 
-1. 把 `lM`（平近点角）从 0 改为 90，观察输出轨道的变化。
+1. 把 `mean_anomaly`（平近点角，对应 Java 教程里的 `lM`）从 0 改为 90，观察输出轨道的变化。
 2. 用 `OrbitType.CARTESIAN.convertType(orbit)` 打印笛卡尔坐标（位置/速度）。
 3. 用 `getMultiplexer().add(...)` 步进模式打印速度，理解步进处理 vs 手动循环。

@@ -92,22 +92,22 @@ from org.hipparchus.util import FastMath
 utc = TimeScalesFactory.getUTC()
 eci = FramesFactory.getEME2000()
 ecef = FramesFactory.getITRF(IERSConventions.IERS_2010, True)
-initialDate = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
+initial_date = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
 
-initialOrbit = KeplerianOrbit(
+initial_orbit = KeplerianOrbit(
     PVCoordinates(Vector3D(-6142438.668, 3492467.560, -25767.25680),
                   Vector3D(505.8479685, 942.7809215, 7435.922231)),
-    eci, initialDate, Constants.EIGEN5C_EARTH_MU)
+    eci, initial_date, Constants.EIGEN5C_EARTH_MU)
 
 # 白天：VVLH 对地 + 滚转20° 俯仰40°；夜晚：纯 VVLH
-dayObservationLaw = LofOffset(initialOrbit.getFrame(), LOFType.VVLH, RotationOrder.XYZ,
+day_observation_law = LofOffset(initial_orbit.getFrame(), LOFType.VVLH, RotationOrder.XYZ,
                               FastMath.toRadians(20.0), FastMath.toRadians(40.0), 0.0)
-nightRestingLaw = LofOffset(initialOrbit.getFrame(), LOFType.VVLH)
+night_resting_law = LofOffset(initial_orbit.getFrame(), LOFType.VVLH)
 
 sun = CelestialBodyFactory.getSun()
 earth = ReferenceEllipsoid.getIers2003(ecef)
-dayNightEvent = EclipseDetector(sun, Constants.IAU_2015_NOMINAL_SOLAR_RADIUS, earth).withHandler(ContinueOnEvent())
-nightDayEvent = EclipseDetector(sun, Constants.IAU_2015_NOMINAL_SOLAR_RADIUS, earth).withHandler(ContinueOnEvent())
+day_night_event = EclipseDetector(sun, Constants.IAU_2015_NOMINAL_SOLAR_RADIUS, earth).withHandler(ContinueOnEvent())
+night_day_event = EclipseDetector(sun, Constants.IAU_2015_NOMINAL_SOLAR_RADIUS, earth).withHandler(ContinueOnEvent())
 
 
 @JImplements(AttitudeSwitchHandler)
@@ -117,28 +117,28 @@ class SwitchLogger:
         print("switching attitude at", s.getDate())
 
 
-attitudesSequence = AttitudesSequence()
-attitudesSequence.addSwitchingCondition(dayObservationLaw, nightRestingLaw, dayNightEvent,
+attitudes_sequence = AttitudesSequence()
+attitudes_sequence.addSwitchingCondition(day_observation_law, night_resting_law, day_night_event,
                                         False, True, 10.0,
                                         AngularDerivativesFilter.USE_R, SwitchLogger())
-attitudesSequence.addSwitchingCondition(nightRestingLaw, dayObservationLaw, nightDayEvent,
+attitudes_sequence.addSwitchingCondition(night_resting_law, day_observation_law, night_day_event,
                                         True, False, 10.0,
                                         AngularDerivativesFilter.USE_R, SwitchLogger())
 
-if dayNightEvent.g(SpacecraftState(initialOrbit)) >= 0:
-    attitudesSequence.resetActiveProvider(dayObservationLaw)
+if day_night_event.g(SpacecraftState(initial_orbit)) >= 0:
+    attitudes_sequence.resetActiveProvider(day_observation_law)
 else:
-    attitudesSequence.resetActiveProvider(nightRestingLaw)
+    attitudes_sequence.resetActiveProvider(night_resting_law)
 
 propagator = EcksteinHechlerPropagator(
-    initialOrbit, attitudesSequence,
+    initial_orbit, attitudes_sequence,
     Constants.EIGEN5C_EARTH_EQUATORIAL_RADIUS,
     Constants.EIGEN5C_EARTH_MU, Constants.EIGEN5C_EARTH_C20,
     Constants.EIGEN5C_EARTH_C30, Constants.EIGEN5C_EARTH_C40,
     Constants.EIGEN5C_EARTH_C50, Constants.EIGEN5C_EARTH_C60)
 
-finalState = propagator.propagate(initialDate.shiftedBy(12600.0))
-print("Propagation ended at", finalState.getDate())
+final_state = propagator.propagate(initial_date.shiftedBy(12600.0))
+print("Propagation ended at", final_state.getDate())
 ```
 
 ## 6.4 运行结果（节选）
@@ -152,7 +152,7 @@ Propagation ended at 2004-01-01T03:00:00.000Z
 
 1. **`addSwitchingCondition(from, to, detector, forward, backward, maxCheck, filter, handler)`**：
    - `forward` / `backward`：该探测器事件**增方向**或**减方向**触发切换；
-   - 白天→夜晚用 `dayNightEvent` 的减方向（`false, true`），夜晚→白天用增方向（`true, false`）。
+   - 白天→夜晚用 `day_night_event` 的减方向（`false, true`），夜晚→白天用增方向（`true, false`）。
 2. **`resetActiveProvider`**：外推前必须显式指定初始生效的姿态律（否则不知道从哪个姿态开始）。
 3. **`EcksteinHechlerPropagator`**：解析（非数值）传播器，自带 J2~J6 摄动，
    适合中低轨道；它接受 `AttitudeProvider` 作为参数。
@@ -169,6 +169,6 @@ Propagation ended at 2004-01-01T03:00:00.000Z
 
 ## 6.7 练习
 
-1. 把 `dayObservationLaw` 的偏置改成 (0,0,0)，对比指向偏差输出。
-2. 用 `NumericalPropagator` 替代 `EcksteinHechlerPropagator`，通过 `setAttitudeProvider(attitudesSequence)`。
+1. 把 `day_observation_law` 的偏置改成 (0,0,0)，对比指向偏差输出。
+2. 用 `NumericalPropagator` 替代 `EcksteinHechlerPropagator`，通过 `setAttitudeProvider(attitudes_sequence)`。
 3. 记录 `switchOccurred` 的时刻列表，统计一天内的日/夜切换次数与占比。

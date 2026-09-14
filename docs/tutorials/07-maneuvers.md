@@ -95,7 +95,7 @@ from org.hipparchus.util import FastMath
 utc = TimeScalesFactory.getUTC()
 eme2000 = FramesFactory.getEME2000()
 
-initialOrbit = KeplerianOrbit(
+initial_orbit = KeplerianOrbit(
     8000000.0, 0.01,
     FastMath.toRadians(50.0),      # 初始倾角 50°
     FastMath.toRadians(140.0),
@@ -106,37 +106,37 @@ initialOrbit = KeplerianOrbit(
     Constants.EIGEN5C_EARTH_MU)
 
 # LVLH 姿态：Z 轴对准轨道面法线
-attitudeProvider = LofOffset(eme2000, LOFType.LVLH)
+attitude_provider = LofOffset(eme2000, LOFType.LVLH)
 
 # 升交点探测器（过滤掉降交点）
-ascendingNodeDetector = EventSlopeFilter(
+ascending_node_detector = EventSlopeFilter(
     NodeDetector(eme2000).withMaxCheck(300.0).withThreshold(1.0e-6),
     FilterType.TRIGGER_ONLY_INCREASING_EVENTS)
 
 # 只在前 3 圈允许机动
-lastAllowedDate = initialOrbit.getDate().shiftedBy(3 * initialOrbit.getKeplerianPeriod())
+last_allowed_date = initial_orbit.getDate().shiftedBy(3 * initial_orbit.getKeplerianPeriod())
 
 
 @JImplements(EnablingPredicate)
 class FirstThreeOrbits:
     @JOverride
     def eventIsEnabled(self, state, detector, g):
-        return state.getDate().isBefore(lastAllowedDate)
+        return state.getDate().isBefore(last_allowed_date)
 
 
-trigger = EventEnablingPredicateFilter(ascendingNodeDetector, FirstThreeOrbits())
+trigger = EventEnablingPredicateFilter(ascending_node_detector, FirstThreeOrbits())
 
 # 122.25 m/s 沿 -Z（升交点降倾角）
 maneuver = ImpulseManeuver(trigger, Vector3D(0.0, 0.0, -122.25), 350.0)
 
-propagator = KeplerianPropagator(initialOrbit, attitudeProvider)
+propagator = KeplerianPropagator(initial_orbit, attitude_provider)
 propagator.addEventDetector(maneuver)
 
-finalState = propagator.propagate(
-    initialOrbit.getDate().shiftedBy(5 * initialOrbit.getKeplerianPeriod()))
+final_state = propagator.propagate(
+    initial_orbit.getDate().shiftedBy(5 * initial_orbit.getKeplerianPeriod()))
 
 print("final inclination (deg):",
-      FastMath.toDegrees(finalState.getOrbit().getI()))
+      FastMath.toDegrees(final_state.getOrbit().getI()))
 ```
 
 ## 7.4 运行结果

@@ -88,20 +88,20 @@ from org.hipparchus.ode.events import Action
 from org.hipparchus.util import FastMath
 
 utc = TimeScalesFactory.getUTC()
-initialDate = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
+initial_date = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
 mu = 3.986004415e14
-inertialFrame = FramesFactory.getEME2000()
+inertial_frame = FramesFactory.getEME2000()
 
 pv = PVCoordinates(Vector3D(-6142438.668, 3492467.560, -25767.25680),
                    Vector3D(505.8479685, 942.7809215, 7435.922231))
-initialOrbit = KeplerianOrbit(pv, inertialFrame, initialDate, mu)
-kepler = KeplerianPropagator(initialOrbit)
+initial_orbit = KeplerianOrbit(pv, inertial_frame, initial_date, mu)
+kepler = KeplerianPropagator(initial_orbit)
 
 ecef = FramesFactory.getITRF(IERSConventions.IERS_2010, True)
 earth = ReferenceEllipsoid.getWgs84(ecef)
 
 station1 = GeodeticPoint(FastMath.toRadians(25.0), FastMath.toRadians(45.0), 0.0)
-sta1Frame = TopocentricFrame(earth, station1, "station1")
+sta1_frame = TopocentricFrame(earth, station1, "station1")
 
 
 @JImplements(EventHandler)
@@ -129,15 +129,15 @@ class VisibilityHandler:
         return s
 
 
-sta1Visi = (ElevationDetector(60.0, 0.001, sta1Frame)
+sta1_visibility = (ElevationDetector(60.0, 0.001, sta1_frame)
             .withConstantElevation(FastMath.toRadians(5.0))
             .withHandler(VisibilityHandler()))
 
-kepler.addEventDetector(sta1Visi)
+kepler.addEventDetector(sta1_visibility)
 
-finalState = kepler.propagate(initialDate.shiftedBy(1500.0))
+final_state = kepler.propagate(initial_date.shiftedBy(1500.0))
 print(" Final state duration from initial date (s) :",
-      finalState.getDate().durationFrom(initialDate))
+      final_state.getDate().durationFrom(initial_date))
 ```
 
 ## 5.4 运行结果

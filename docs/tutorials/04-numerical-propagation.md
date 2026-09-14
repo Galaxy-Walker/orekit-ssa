@@ -97,15 +97,15 @@ from org.hipparchus.ode.nonstiff import DormandPrince853Integrator
 from org.hipparchus.util import FastMath
 
 utc = TimeScalesFactory.getUTC()
-inertialFrame = FramesFactory.getEME2000()
+inertial_frame = FramesFactory.getEME2000()
 mu = 3.986004415e14
-initialDate = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
+initial_date = AbsoluteDate(2004, 1, 1, 23, 30, 0.0, utc)
 
-initialOrbit = KeplerianOrbit(24396159.0, 0.72831215,
+initial_orbit = KeplerianOrbit(24396159.0, 0.72831215,
                               FastMath.toRadians(7.0), FastMath.toRadians(180.0),
                               FastMath.toRadians(261.0), 0.0,
-                              PositionAngleType.MEAN, inertialFrame, initialDate, mu)
-initialState = SpacecraftState(initialOrbit)
+                              PositionAngleType.MEAN, inertial_frame, initial_date, mu)
+initial_state = SpacecraftState(initial_orbit)
 
 # 自适应步长积分器：最小步长 0.001s，最大 1000s
 integrator = DormandPrince853Integrator(0.001, 1000.0, 1.0e-3, 1.0e-3)
@@ -115,10 +115,10 @@ propagator.setOrbitType(OrbitType.KEPLERIAN)
 
 # 力模型：10x10 阶地球引力场（Holmes-Featherstone）
 provider = GravityFieldFactory.getNormalizedProvider(10, 10)
-holmesFeatherstone = HolmesFeatherstoneAttractionModel(
+holmes_featherstone = HolmesFeatherstoneAttractionModel(
     FramesFactory.getITRF(IERSConventions.IERS_2010, True), provider)
-propagator.addForceModel(holmesFeatherstone)
-propagator.setInitialState(initialState)
+propagator.addForceModel(holmes_featherstone)
+propagator.setInitialState(initial_state)
 
 
 @JImplements(OrekitFixedStepHandler)
@@ -128,21 +128,21 @@ class TutorialStepHandler:
         print("          date                a           e")
 
     @JOverride
-    def handleStep(self, currentState):
-        o = OrbitType.KEPLERIAN.convertType(currentState.getOrbit())
-        print("%s %12.3f %10.8f" % (currentState.getDate(), o.getA(), o.getE()))
+    def handleStep(self, current_state):
+        o = OrbitType.KEPLERIAN.convertType(current_state.getOrbit())
+        print("%s %12.3f %10.8f" % (current_state.getDate(), o.getA(), o.getE()))
 
     @JOverride
-    def finish(self, finalState):
+    def finish(self, final_state):
         print("this was the last step\n")
 
 
 propagator.getMultiplexer().add(60.0, TutorialStepHandler())
-finalState = propagator.propagate(initialDate.shiftedBy(630.0))
+final_state = propagator.propagate(initial_date.shiftedBy(630.0))
 
-o = OrbitType.KEPLERIAN.convertType(finalState.getOrbit())
+o = OrbitType.KEPLERIAN.convertType(final_state.getOrbit())
 print("Final state:")
-print(finalState.getDate())
+print(final_state.getDate())
 print("a = %.3f  e = %.8f  i = %.6f deg" %
       (o.getA(), o.getE(), FastMath.toDegrees(o.getI())))
 ```
@@ -152,7 +152,7 @@ print("a = %.3f  e = %.8f  i = %.6f deg" %
 > `(1e-3, 1e-3)`。要完全复刻官方参数可写成：
 > ```python
 > from org.orekit.propagation import CartesianToleranceProvider, ToleranceProvider
-> tol = ToleranceProvider.of(CartesianToleranceProvider.of(10.0)).getTolerances(initialOrbit, OrbitType.KEPLERIAN)
+> tol = ToleranceProvider.of(CartesianToleranceProvider.of(10.0)).getTolerances(initial_orbit, OrbitType.KEPLERIAN)
 > integrator = DormandPrince853Integrator(0.001, 1000.0, tol[0], tol[1])
 > ```
 

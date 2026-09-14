@@ -79,6 +79,11 @@ new ElevationDetector(maxcheck, threshold, frame)
 **JPype 不支持** 把 Python 函数直接当 Java 接口用（不像 JavaScript/部分桥接层），
 必须用 `@JImplements` + `@JOverride` 显式实现接口。
 
+> **命名约定**：`@JOverride` 方法名（`init`、`eventOccurred`、`finish`、`resetState`、
+> `handleStep`、`switchOccurred`、`eventIsEnabled` …）是 **Java 侧的方法名**，必须逐字照抄，
+> **不能改成 snake_case**，否则 Java 侧调用时会抛 `NoSuchMethodError`。
+> Python 侧的变量名、参数名则一律用 snake_case（PEP 8）。
+
 通用模板：
 
 ```python
