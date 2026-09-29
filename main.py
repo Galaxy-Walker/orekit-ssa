@@ -1,69 +1,49 @@
-"""Keplerian propagation 示例（移植自 CS-SI/Orekit README）。
+"""阶段 1：组合初始条件、传播后端与轨迹采样。"""
 
-orekit-jpype 版注意事项：
-- v13 的 Python 模块名是 orekit_jpype，不再是 orekit
-- 所有 org.* / java.* 的导入必须在 initVM() 之后
-- orekitdata 是 pip 安装的命名空间包，需手动注册到 DataProvidersManager
-"""
+import argparse
+from math import radians
 
-import os
-import orekit_jpype as orekit
-import orekitdata
-
-
-def load_orekit_data() -> None:
-    """注册 orekitdata 包自带的参考数据（EOP、闰秒、重力场等）。"""
-    from java.io import File
-    from org.orekit.data import DataContext, DirectoryCrawler
-
-    root = os.path.abspath(orekitdata.__path__[0])
-    DataContext.getDefault().getDataProvidersManager().addProvider(
-        DirectoryCrawler(File(root))
-    )
+from ssa.domain import Epoch, InitialConditions, KeplerianElements
+from ssa.orekit import OrekitPropagatorFactory, PropagationMethod, initialize_orekit
+from ssa.orekit.forces import ThirdBody, ThirdBodyGravity
+from ssa.propagation import sample_trajectory
 
 
 def main() -> None:
-    # 1. 启动 JVM —— 之后才能导入 Java 包
-    orekit.initVM()
+    parser = argparse.ArgumentParser(description="单星轨道传播示例（SI 单位）")
+    parser.add_argument("--method", choices=list(PropagationMethod), default="keplerian")
+    parser.add_argument("--duration", type=float, default=86400.0, help="传播时长，秒")
+    parser.add_argument("--step", type=float, default=21600.0, help="输出采样步长，秒")
+    parser.add_argument("--data-dir", help="Orekit 参考数据目录，默认使用 orekitdata 包")
+    parser.add_argument("--third-body", choices=["sun", "moon"], action="append", default=[])
+    args = parser.parse_args()
+    if args.third_body and args.method != "numerical":
+        parser.error("--third-body 需要 --method numerical")
 
-    # 2. 构造开普勒轨道（以下导入需在 JVM 启动后）
-    from org.hipparchus.util import FastMath
-    from org.orekit.data import DataContext, DirectoryCrawler
-    from org.orekit.frames import FramesFactory
-    from org.orekit.orbits import KeplerianOrbit, PositionAngleType
-    from org.orekit.propagation.analytical import KeplerianPropagator
-    from org.orekit.time import AbsoluteDate, TimeScalesFactory
-    from org.orekit.utils import Constants
-    from java.io import File
-
-    load_orekit_data()
-
-    sma = 7000e3                              # 半长轴 [m]
-    ecc = 0.001                               # 偏心率 [-]
-    inc = FastMath.toRadians(15.0)            # 倾角 [rad]
-    pa = FastMath.toRadians(30.0)             # 近地点幅角 [rad]
-    raan = FastMath.toRadians(45.0)           # 升交点赤经 [rad]
-    anomaly = FastMath.toRadians(60.0)        # 平近点角 [rad]
-
-    position_angle_type = PositionAngleType.MEAN
-    inertial_frame = FramesFactory.getGCRF()  # 地心惯性系
-    date = AbsoluteDate(
-        2002, 1, 1, 0, 0, 0, TimeScalesFactory.getUTC()
+    initialize_orekit(args.data_dir)
+    initial = InitialConditions(
+        spacecraft_id="sat-001",
+        epoch=Epoch("2002-01-01T00:00:00Z"),
+        orbit=KeplerianElements(
+            semi_major_axis_m=7000e3,
+            eccentricity=0.001,
+            inclination_rad=radians(15.0),
+            argument_of_perigee_rad=radians(30.0),
+            raan_rad=radians(45.0),
+            anomaly_rad=radians(60.0),
+        ),
     )
-    mu = Constants.EIGEN5C_EARTH_MU           # EIGEN-5C 地球引力常数
-
-    orbit = KeplerianOrbit(
-        sma, ecc, inc, pa, raan, anomaly,
-        position_angle_type, inertial_frame, date, mu,
+    factory = OrekitPropagatorFactory(
+        method=PropagationMethod(args.method),
+        forces=tuple(ThirdBodyGravity(ThirdBody(body.upper())) for body in args.third_body),
     )
-    print(orbit)
-
-    # 3. 创建开普勒传播器并传播一天
-    propagator = KeplerianPropagator(orbit)
-
-    target_date = date.shiftedBy(Constants.JULIAN_DAY)
-    propagated_state = propagator.propagate(target_date)
-    print(propagated_state.getOrbit())
+    propagator = factory.create(initial)
+    print(f"卫星：{initial.spacecraft_id}  传播器：{args.method}  坐标系：{initial.frame}")
+    print("UTC                                    x [m]          y [m]          z [m]      |v| [m/s]")
+    for state in sample_trajectory(propagator, duration_s=args.duration, step_s=args.step):
+        x, y, z = state.pv.position_m
+        speed = sum(v * v for v in state.pv.velocity_m_s) ** 0.5
+        print(f"{state.epoch.utc}  {x:14.3f} {y:14.3f} {z:14.3f} {speed:12.3f}")
 
 
 if __name__ == "__main__":
