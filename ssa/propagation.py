@@ -34,9 +34,19 @@ class PropagatorFactory(Protocol):
 
 
 class LinearizedPropagator(Propagator, Protocol):
-    """阶段 2 可选能力；阶段 1 的具体后端尚未实现此端口。"""
+    """携带相对固定初值的笛卡尔状态转移矩阵。"""
 
     def propagate_with_transition(self, epoch: Epoch) -> LinearizedState: ...
+
+
+class LinearizedPropagatorFactory(Protocol):
+    def create_linearized(self, initial: InitialConditions) -> LinearizedPropagator: ...
+
+
+class EpochClock(Protocol):
+    def seconds_between(self, later: Epoch, earlier: Epoch) -> float:
+        """有符号物理秒数，须正确处理 UTC 闰秒。"""
+        ...
 
 
 def sample_trajectory(

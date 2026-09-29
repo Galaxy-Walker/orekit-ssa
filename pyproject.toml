@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "numpy>=2.5.3",
     "orekit-jpype>=13.1.7.1",
     "orekitdata",
 ]

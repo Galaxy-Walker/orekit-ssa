@@ -33,6 +33,9 @@
 | [07 机动](./07-maneuvers.md) | 脉冲机动、节点降轨 | `maneuvers/ImpulseAtNode.java` | ✅ |
 | [08 进阶专题](./08-advanced.md) | TLE / 轨道确定 / GNSS / CR3BP | 多文件 | ✅ |
 
+本仓库的定轨实作见 [阶段 2：单星单站定轨](../architecture/stage-2-single-station-estimation.md)：
+结合第 2/4/5 章的坐标变换、数值传播和可见性，实现几何测距 / 距离率与 EKF 闭环。
+
 ## 快速开始（最小可运行片段）
 
 ```python

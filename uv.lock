@@ -91,12 +91,14 @@ name = "orekit-ssa"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "numpy" },
     { name = "orekit-jpype" },
     { name = "orekitdata" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", specifier = ">=2.5.3" },
     { name = "orekit-jpype", specifier = ">=13.1.7.1" },
     { name = "orekitdata", git = "https://gitlab.orekit.org/orekit/orekit-data.git" },
 ]

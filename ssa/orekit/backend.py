@@ -4,19 +4,25 @@ from dataclasses import dataclass
 from typing import Any
 
 from ssa.domain import (
-    CartesianPV, Epoch, InitialConditions, KeplerianElements, OrbitState,
+    CartesianPV, Epoch, InitialConditions, KeplerianElements, LinearizedState, OrbitState,
     require_finite,
 )
 from ssa.orekit.config import IntegratorConfig, PropagationMethod
 from ssa.orekit.forces import ForceModelFactory
 from ssa.orekit.runtime import require_initialized
-from ssa.propagation import Propagator
+from ssa.propagation import LinearizedPropagator, Propagator
 
 
 def _date(epoch: Epoch) -> Any:
     from org.orekit.time import AbsoluteDate, TimeScalesFactory
 
     return AbsoluteDate(epoch.utc, TimeScalesFactory.getUTC())
+
+
+class OrekitClock:
+    def seconds_between(self, later: Epoch, earlier: Epoch) -> float:
+        require_initialized()
+        return float(_date(later).durationFrom(_date(earlier)))
 
 
 def _orbit(initial: InitialConditions) -> Any:
@@ -83,6 +89,20 @@ class _OrekitPropagator:
         return self._propagate_date(self._reference_date.shiftedBy(float(elapsed_s)))
 
 
+class _OrekitLinearizedPropagator(_OrekitPropagator):
+    def __init__(self, initial: InitialConditions, native: Any) -> None:
+        super().__init__(initial, native)
+        self._harvester = native.setupMatricesComputation("ssa-stm", None, None)
+
+    def propagate_with_transition(self, epoch: Epoch) -> LinearizedState:
+        state = self._native.propagate(self._reference_date, _date(epoch))
+        matrix = self._harvester.getStateTransitionMatrix(state)
+        return LinearizedState(
+            self._to_state(state),
+            tuple(tuple(float(matrix.getEntry(i, j)) for j in range(6)) for i in range(6)),
+        )
+
+
 @dataclass(frozen=True)
 class OrekitPropagatorFactory:
     method: PropagationMethod = PropagationMethod.KEPLERIAN
@@ -96,6 +116,9 @@ class OrekitPropagatorFactory:
             raise ValueError("开普勒传播不支持摄动力，请选择 numerical")
 
     def create(self, initial: InitialConditions) -> Propagator:
+        return _OrekitPropagator(initial, self._create_native(initial))
+
+    def _create_native(self, initial: InitialConditions) -> Any:
         require_initialized()
         from org.orekit.propagation import SpacecraftState, ToleranceProvider
         from org.orekit.propagation.analytical import KeplerianPropagator
@@ -124,4 +147,10 @@ class OrekitPropagatorFactory:
             for force in self.forces:
                 native.addForceModel(force.create(initial))
             native.setResetAtEnd(False)
-        return _OrekitPropagator(initial, native)
+        return native
+
+    def create_linearized(self, initial: InitialConditions) -> LinearizedPropagator:
+        # 仅数值笛卡尔传播提供此能力，避免把根数导数误当成笛卡尔导数。
+        if self.method != PropagationMethod.NUMERICAL:
+            raise ValueError("状态转移矩阵需要 numerical 传播器")
+        return _OrekitLinearizedPropagator(initial, self._create_native(initial))

@@ -33,6 +33,9 @@ class ContractTests(unittest.TestCase):
         # 独立进程检验导入副作用，不受其他集成测试已启动 JVM 的影响。
         code = """
 from ssa.orekit import OrekitPropagatorFactory
+from ssa.orekit.stations import OrekitStationGeometry
+from ssa.estimation import ExtendedKalmanFilter
+from ssa.observations import GroundStation
 from ssa.domain import CartesianPV, Epoch, InitialConditions
 import jpype
 assert not jpype.isJVMStarted()

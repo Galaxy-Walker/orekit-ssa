@@ -2,12 +2,15 @@
 
 ## 项目定位
 
-基于 **Orekit 13.1** 的 Python 空间态势感知（SSA）原型仓库（阶段 1，标准库 unittest，无 lint/无 CI）。
+基于 **Orekit 13.1** 的 Python 空间态势感知（SSA）原型仓库（阶段 2，标准库 unittest，无 lint/无 CI）。
 
 - `main.py` — 轨道传播装配入口，支持开普勒 / 数值传播及日月第三体摄动
+- `orbit_determination.py` — 单星单站测距 / 距离率 EKF 仿真及 CSV 诊断
 - `ssa/domain.py`、`ssa/propagation.py` — 纯 Python 数据模型与传播端口，不依赖 Java
+- `ssa/observations.py`、`ssa/estimation.py` — 几何观测与 EKF；估计层用 NumPy，Java 不得泄漏
 - `ssa/orekit/` — JVM、数据、传播器、力模型适配层；Java 对象不得泄漏到核心层
 - `docs/architecture/stage-1-propagation.md` — 阶段 1 架构与后续扩展契约
+- `docs/architecture/stage-2-single-station-estimation.md` — 观测假设、STM / EKF 与实验限制
 - `tests/` — 传播物理回归与接口契约验证
 - `docs/tutorials/` — 自写中文教程（官方 Java 教程 ↔ `orekit_jpype` 对照），含本仓库踩坑经验，动手前先查
 - `docs/orekit-javadoc/`、`data/orekit-data-main/` — 本地参考副本（均未纳入 git，勿视为源）
@@ -18,6 +21,7 @@
 ```bash
 uv sync                              # 安装依赖（含 git 源 orekitdata）
 uv run python main.py                # 运行示例
+uv run python orbit_determination.py  # 单星单站定轨
 uv run python -m unittest discover -s tests -v  # 物理回归与契约验证
 ```
 

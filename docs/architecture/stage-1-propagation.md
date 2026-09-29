@@ -7,7 +7,8 @@
 
 当前实现解析二体传播、数值二体传播、日/月第三体摄动。
 地球非球形引力、大气阻力、光压和机动可通过摄动力插件扩展。
-当前没有观测、滤波、协方差传播、测站或调度算法。
+这些传播模块不承担观测、滤波或调度职责。测站、观测和估计已在
+[阶段 2](stage-2-single-station-estimation.md) 中实现。
 
 ## 2. 分层与依赖方向
 
@@ -143,8 +144,8 @@ LinearizedState
 ```
 
 Φ 的起点是该传播器的 `initial_state`，两端都使用其惯性系，变量顺序为位置 / 速度。
-阶段 1 的具体适配器尚未实现该可选能力。阶段 2 可通过 Orekit 矩阵计算能力实现；
-增加 `StateEstimate(state, covariance)`，由估计层维护同历元、同坐标系的协方差并计算：
+阶段 2 已通过 `create_linearized` 和 Orekit 数值传播矩阵计算实现此能力；
+`StateEstimate(state, covariance)` 由估计层维护同历元、同坐标系的协方差并计算：
 
 ```text
 P⁻(t) = Φ(t,t₀) P⁺(t₀) Φ(t,t₀)ᵀ + Q(t,t₀)
