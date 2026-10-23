@@ -29,6 +29,16 @@ git diff main -- ssa/estimation.py   # 看你的版本与原版的差异
 另外 4 个用例（Jacobian 差分、可见性与种子、STM 对照、测站自转）完全不碰 `estimation.py`。
 它们在重写全程都该是绿的——哪天红了，说明你改坏了别的文件，这是你的护栏。
 
+## 配套材料
+
+| 文件 | 什么时候用 |
+|---|---|
+| `docs/learning/kf_warmup.py` | 开始前跑一次，看「预测加噪声、更新减噪声」的拉锯。纯 Python，无矩阵 |
+| `docs/learning/estimate-walkthrough.md` | 卡在具体某一步时查：形状表、NumPy 对照、手算数字、报错对照表 |
+| `docs/architecture/stage-2-single-station-estimation.md` §4 | 原始公式，最权威 |
+
+导游文档按需查，**不要通读**。看懂了不算数，合上能默写才算。
+
 ## 四个里程碑
 
 预计总时长 **6–8 小时**，拆成四个半天。每步都有明确的"绿"。
@@ -116,10 +126,12 @@ uv run python orbit_determination.py --seed 42
 
 按顺序解锁，每级至少花 20 分钟：
 
-1. **数据形状与单位**：`x` 是 6 维；`P` 是 6×6；`H` 是 2×6；`R` 是 2×2。写下来。
+1. **数据形状与单位**：`estimate-walkthrough.md` 第 0 节的变量表。把 `x, P, Φ, Q, H, R, y, S, K` 的形状抄一遍。
 2. **六行公式**：`docs/architecture/stage-2-single-station-estimation.md` 第 4 节。
-3. **NumPy 惯用法**：`np.linalg.solve`、`np.block`、`np.linalg.cholesky`；Joseph 形式为什么比 `(I-KH)P` 稳。
-4. **参考实现**：`git show main:ssa/estimation.py`。看过之后合上，隔 10 分钟再手写一遍。
+3. **数学推导**：`estimate-walkthrough.md` 第 1 节（协方差为什么归一化、Q 的 `Δt³/3` 从哪来）。
+4. **逐函数步骤**：`estimate-walkthrough.md` 第 2 节——给的是步骤和关键表达式，不是完整函数。
+5. **手算对照**：`estimate-walkthrough.md` 第 4 节，把标量例子的数字先在 REPL 里打出来。
+6. **参考实现**：`git show main:ssa/estimation.py`。看过之后合上，隔 10 分钟再手写一遍。
 
 ## 卡住时问自己三句话
 
