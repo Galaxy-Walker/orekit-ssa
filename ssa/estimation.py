@@ -1,6 +1,15 @@
-"""笛卡尔 EKF：NumPy 线性代数，动力学和测站通过端口注入。"""
+"""笛卡尔 EKF：NumPy 线性代数，动力学和测站通过端口注入。
 
-from dataclasses import dataclass, replace
+【重写练习脚手架】本文件的业务逻辑全部待实现，调用即抛 NotImplementedError。
+
+- 规格来源：`tests/test_estimation.py`（不要修改它）
+- 数学推导：`docs/architecture/stage-2-single-station-estimation.md` 第 3、4 节
+- 实现顺序、提示阶梯与验收：`docs/learning/rewrite-estimation.md`
+
+约定：历元是 `Epoch`，状态是 SI 单位 + 弧度，Java 对象不得出现在本文件。
+"""
+
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -15,44 +24,36 @@ def _matrix_tuple(matrix) -> Matrix6:
 
 @dataclass(frozen=True)
 class StateEstimate:
-    """同历元、同惯性系的 [r, v] 估计；协方差单位为对应状态单位的乘积。"""
+    """同历元、同惯性系的 [r, v] 估计；协方差单位为对应状态单位的乘积。
+
+    契约：
+    - 协方差必须是 6×6、全部有限、对称、正定，否则抛 ValueError；
+    - 构造后与传入对象脱钩：外部再改原矩阵（哪怕是 np.ndarray）不得影响本实例；
+    - 内部以不可变 tuple of tuple 保存。
+    """
 
     state: OrbitState
     covariance: Matrix6
 
     def __post_init__(self) -> None:
-        p = np.asarray(self.covariance, dtype=float)
-        if p.shape != (6, 6) or not np.isfinite(p).all() or np.any(np.diag(p) <= 0):
-            raise ValueError("协方差必须为有限的 6×6 正定矩阵")
-        # 按标准差归一化后检查，避免位置/速度单位尺度掩盖非对称或非正定。
-        scale = np.sqrt(np.diag(p))
-        correlation = p / np.outer(scale, scale)
-        if not np.allclose(correlation, correlation.T, rtol=0.0, atol=1e-12):
-            raise ValueError("协方差必须对称")
-        try:
-            np.linalg.cholesky(correlation)
-        except np.linalg.LinAlgError as error:
-            raise ValueError("协方差必须正定") from error
-        object.__setattr__(self, "covariance", _matrix_tuple(p))
+        raise NotImplementedError("StateEstimate: 校验不变量并转成不可变表示")
 
 
 def diagonal_covariance(position_sigma_m: float, velocity_sigma_m_s: float) -> Matrix6:
-    require_finite("position_sigma_m", position_sigma_m, positive=True)
-    require_finite("velocity_sigma_m_s", velocity_sigma_m_s, positive=True)
-    return _matrix_tuple(np.diag([position_sigma_m ** 2] * 3 + [velocity_sigma_m_s ** 2] * 3))
+    """位置 / 速度各三维独立的先验对角协方差。
+
+    两项 σ 必须是正有限数（用 `require_finite(..., positive=True)`），否则 ValueError。
+    """
+    raise NotImplementedError("diagonal_covariance")
 
 
 def white_acceleration_noise(dt_s: float, spectral_density_m2_s3: float) -> Matrix6:
-    """惯性轴独立连续白加速度的局部匀速离散化；q 单位 m²/s³。"""
-    for name, value in (("dt_s", dt_s), ("spectral_density_m2_s3", spectral_density_m2_s3)):
-        require_finite(name, value)
-        if value < 0:
-            raise ValueError(f"{name} 不能为负")
-    eye = np.eye(3) * spectral_density_m2_s3
-    return _matrix_tuple(np.block([
-        [eye * dt_s ** 3 / 3, eye * dt_s ** 2 / 2],
-        [eye * dt_s ** 2 / 2, eye * dt_s],
-    ]))
+    """惯性轴独立的连续白加速度、局部匀速近似下的离散过程噪声 Q。
+
+    契约：dt_s 与谱密度有限且非负，否则 ValueError；返回 6×6 对称半正定矩阵，单位 m²；
+    dt_s == 0 时返回全零矩阵。推导见阶段 2 文档第 4 节末尾。
+    """
+    raise NotImplementedError("white_acceleration_noise")
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,11 @@ class FilterUpdate:
 
 
 class ExtendedKalmanFilter:
+    """序贯 EKF：状态 x=[r(m), v(m/s)]，预测走 LinearizedPropagatorFactory，时间差走 EpochClock。
+
+    时间轴单向：不接受早于当前估计历元的观测或预测历元。
+    """
+
     def __init__(
         self,
         initial: InitialConditions,
@@ -74,73 +80,28 @@ class ExtendedKalmanFilter:
         *,
         acceleration_psd_m2_s3: float = 0.0,
     ) -> None:
-        require_finite("acceleration_psd_m2_s3", acceleration_psd_m2_s3)
-        if acceleration_psd_m2_s3 < 0:
-            raise ValueError("过程噪声谱密度不能为负")
-        self._initial = initial
-        self._factory = factory
-        self._model = model
-        self._clock = clock
-        self._q = acceleration_psd_m2_s3
-        self._estimate = StateEstimate(factory.create_linearized(initial).initial_state, covariance)
+        """校验 psd 有限非负，保存端口，并用 factory 的初始状态 + 传入协方差建立先验估计。"""
+        raise NotImplementedError("ExtendedKalmanFilter.__init__")
 
     @property
     def estimate(self) -> StateEstimate:
+        """当前（最新）估计。已给出，无需改写。"""
         return self._estimate
 
-    def _predict(self, epoch: Epoch) -> StateEstimate:
-        current = self.estimate
-        dt = self._clock.seconds_between(epoch, current.state.epoch)
-        require_finite("预测时间差", dt)
-        if dt < 0:
-            raise ValueError("EKF 不接受早于当前估计的观测或预测历元")
-        if dt == 0:
-            return current
-        initial = replace(
-            self._initial, epoch=current.state.epoch, orbit=current.state.pv,
-            mass_kg=current.state.mass_kg,
-        )
-        propagated = self._factory.create_linearized(initial).propagate_with_transition(epoch)
-        phi = np.asarray(propagated.transition_matrix)
-        p = phi @ np.asarray(current.covariance) @ phi.T
-        p += np.asarray(white_acceleration_noise(dt, self._q))
-        return StateEstimate(propagated.state, _matrix_tuple((p + p.T) / 2))
-
     def predict_to(self, epoch: Epoch) -> StateEstimate:
-        """无观测时只推进状态和协方差。"""
-        self._estimate = self._predict(epoch)
-        return self.estimate
+        """只推进状态与协方差，不消费观测。
+
+        - 必须与当前估计历元的物理时间差（走 clock）做判断；
+        - 同历元必须返回 `self.estimate` 本身（不得新建对象）；
+        - 早于当前历元抛 ValueError，且不修改状态。
+        """
+        raise NotImplementedError("ExtendedKalmanFilter.predict_to")
 
     def process(self, observation: RangeRateObservation) -> FilterUpdate:
-        if observation.spacecraft_id != self.estimate.state.spacecraft_id:
-            raise ValueError("观测卫星与估计状态不匹配")
-        if observation.station_id != self._model.geometry.station.station_id:
-            raise ValueError("观测测站与观测模型不匹配")
-        predicted = self._predict(observation.epoch)
-        measurement = self._model.predict(predicted.state)
-        h = np.asarray(measurement.jacobian)
-        p = np.asarray(predicted.covariance)
-        r = np.diag([observation.noise.range_sigma_m ** 2, observation.noise.range_rate_sigma_m_s ** 2])
-        innovation = np.array([
-            observation.range_m - measurement.range_m,
-            observation.range_rate_m_s - measurement.range_rate_m_s,
-        ])
-        s = h @ p @ h.T + r
-        gain = np.linalg.solve(s, h @ p).T
-        pv = predicted.state.pv
-        x = np.array(pv.position_m + pv.velocity_m_s) + gain @ innovation
-        state = replace(predicted.state, pv=CartesianPV(
-            tuple(float(v) for v in x[:3]), tuple(float(v) for v in x[3:]),
-        ))
-        # Joseph 形式减轻大尺度差异和舍入造成的协方差非正定。
-        a = np.eye(6) - gain @ h
-        posterior = a @ p @ a.T + gain @ r @ gain.T
-        estimate = StateEstimate(state, _matrix_tuple((posterior + posterior.T) / 2))
-        postfit = self._model.predict(state)
-        update = FilterUpdate(
-            estimate, tuple(float(x) for x in innovation),
-            (observation.range_m - postfit.range_m, observation.range_rate_m_s - postfit.range_rate_m_s),
-            float(innovation @ np.linalg.solve(s, innovation)),
-        )
-        self._estimate = estimate
-        return update
+        """预测到观测历元，做一次测距 + 距离率联合更新。
+
+        - 先校验卫星标识、测站标识、时间序，任一不符抛 ValueError；
+        - 失败必须原子：`self.estimate` 保持调用前那个对象不变；
+        - 返回先验创新 y、更新后用 h(x⁺) 重算的后验残差、NIS = yᵀ S⁻¹ y。
+        """
+        raise NotImplementedError("ExtendedKalmanFilter.process")
